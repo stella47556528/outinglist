@@ -1,23 +1,21 @@
 {
-"name": "行程小幫手 Planner",
-"short_name": "小幫手",
-"description": "具備自動保存與離線功能的現代行程規劃工具。",
-"start_url": "./",
-"display": "standalone",
-"background_color": "#f8fafc",
-"theme_color": "#f59e0b",
-"orientation": "portrait",
-"icons": [
-{
-"src": "https://www.google.com/search?q=https://img.icons8.com/color/192/calendar--v1.png",
-"sizes": "192x192",
-"type": "image/png",
-"purpose": "any maskable"
-},
-{
-"src": "https://www.google.com/search?q=https://img.icons8.com/color/512/calendar--v1.png",
-"sizes": "512x512",
-"type": "image/png"
-}
-]
+  "name": "冒險行程小幫手",
+  "short_name": "行程小幫手",
+  "description": "具備離線儲存功能的冒險計畫工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3176/3176363.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3176/3176363.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
