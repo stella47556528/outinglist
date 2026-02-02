@@ -1,7 +1,7 @@
 {
 "name": "行程小幫手 Planner",
 "short_name": "小幫手",
-"description": "具備自動保存功能的現代行程規劃工具。",
+"description": "具備自動保存與離線功能的現代行程規劃工具。",
 "start_url": "./",
 "display": "standalone",
 "background_color": "#f8fafc",
