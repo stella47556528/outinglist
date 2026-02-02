@@ -2,211 +2,406 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>行程小幫手 Planner</title>
     
-    <link rel="manifest" href="manifest.json">
+    <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#f59e0b">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="行程小幫手">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Manifest (Embedded using Data URI for single file requirement) -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"行程小幫手 Planner","short_name":"行程小幫手","description":"專為行動裝置優化的行程管理工具","start_url":".","display":"standalone","background_color":"#ffffff","theme_color":"#f59e0b","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/854/854878.png","sizes":"512x512","type":"image/png"}]}'>
 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
-        @keyframes zoom-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-in { animation: zoom-in 0.2s ease-out; }
-        * { -webkit-tap-highlight-color: transparent; }
-        .icon-box svg { width: 100%; height: 100%; }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #fef3c7; /* 琥珀黃底色 (Amber 100) */
+            overscroll-behavior: none;
+        }
+
+        .task-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .completed {
+            background-color: #fef9c3 !important;
+            border-color: #eab308 !important;
+            opacity: 0.85;
+        }
+
+        .completed .task-text {
+            text-decoration: line-through;
+            color: #713f12;
+        }
+
+        .modal-enter {
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
     </style>
 </head>
-<body class="bg-slate-50 overflow-x-hidden">
-    <div id="root">
-        <div class="flex flex-col items-center justify-center min-h-screen text-slate-400 font-bold italic">
-            <div class="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            探險準備中...
+<body class="max-w-md mx-auto min-h-screen shadow-2xl bg-white flex flex-col relative">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-amber-100 sticky top-0 z-30 px-4 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-bold text-amber-600">行程小幫手</h1>
+        
+        <!-- 待辦項目提醒 (Center) -->
+        <div onclick="setFilter('todo')" class="cursor-pointer bg-amber-50 px-3 py-1 rounded-full border border-amber-200 animate-pulse">
+            <span class="text-xs font-bold text-amber-800">進行中: <span id="todo-count">0</span></span>
+        </div>
+
+        <!-- 新增按鈕 (Right) -->
+        <button onclick="openAddModal()" class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+            <i class="fas fa-plus"></i>
+        </button>
+    </header>
+
+    <!-- 分類過濾 (Tabs) -->
+    <nav class="flex border-b border-amber-100 text-sm font-medium bg-amber-50/50">
+        <button onclick="setFilter('todo')" id="tab-todo" class="flex-1 py-3 border-b-2 border-amber-500 text-amber-700">進行中</button>
+        <button onclick="setFilter('all')" id="tab-all" class="flex-1 py-3 border-b-2 border-transparent text-slate-500">全部</button>
+        <button onclick="setFilter('done')" id="tab-done" class="flex-1 py-3 border-b-2 border-transparent text-slate-500">已完成</button>
+    </nav>
+
+    <!-- 行程列表清單 -->
+    <main id="task-list" class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-24">
+        <!-- 動態生成的卡片將放在這裡 -->
+    </main>
+
+    <!-- 回收站懸浮按鈕 (Bottom Right) -->
+    <button onclick="toggleTrash()" class="fixed bottom-6 right-6 w-14 h-14 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform">
+        <i class="fas fa-trash"></i>
+    </button>
+
+    <!-- 回收站面板 -->
+    <div id="trash-panel" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end justify-center">
+        <div class="bg-slate-900 w-full max-w-md rounded-t-3xl p-6 h-[70vh] flex flex-col text-white">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-recycle text-amber-400"></i> 回收站
+                </h2>
+                <button onclick="toggleTrash()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="trash-list" class="flex-1 overflow-y-auto space-y-4 no-scrollbar">
+                <!-- 回收站項目 -->
+            </div>
         </div>
     </div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <!-- 新增/編輯彈窗 -->
+    <div id="editor-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 modal-enter shadow-2xl border-t-8 border-amber-500">
+            <h3 id="modal-title" class="text-lg font-bold mb-4 text-amber-800">你要去哪裡？</h3>
+            <textarea id="task-input" class="w-full h-32 p-4 bg-amber-50 rounded-2xl border border-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4" placeholder="輸入行程內容..."></textarea>
+            <div class="flex gap-3">
+                <button onclick="closeEditorWithCheck()" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold">取消</button>
+                <button onclick="saveTask()" class="flex-1 py-3 rounded-xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-200">儲存</button>
+            </div>
+        </div>
+    </div>
 
-        // 建立一個穩定的圖標組件
-        const Icon = ({ name, size = 24, className = "" }) => {
-            return (
-                <div 
-                    className={`inline-flex items-center justify-center ${className}`} 
-                    style={{ width: size, height: size }}
-                    dangerouslySetInnerHTML={{ __html: window.lucide ? lucide.createSvg(lucide.icons[name]) : '' }}
-                />
-            );
-        };
+    <!-- 未儲存警示彈窗 -->
+    <div id="alert-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl text-center">
+            <i class="fas fa-exclamation-triangle text-amber-600 text-4xl mb-4"></i>
+            <h3 class="text-lg font-bold mb-2 text-slate-800">尚未儲存變更</h3>
+            <p class="text-sm text-slate-500 mb-6">您剛才編輯的內容還沒儲存，確定要放棄嗎？</p>
+            <div class="flex flex-col gap-2">
+                <button onclick="saveTask()" class="w-full py-3 bg-amber-500 text-white rounded-xl font-bold">儲存並離開</button>
+                <button onclick="forceCloseEditor()" class="w-full py-3 bg-slate-100 text-slate-400 rounded-xl font-bold">放棄變更</button>
+            </div>
+        </div>
+    </div>
 
-        const App = () => {
-            const [stops, setStops] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('pwa_html_planner_stops');
-                    return saved ? JSON.parse(saved) : [];
-                } catch (e) { return []; }
+    <!-- PWA 安裝提示 (Optional UI) -->
+    <div id="install-banner" class="fixed bottom-24 left-4 right-4 bg-amber-600 text-white p-4 rounded-2xl shadow-2xl z-50 hidden flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-mobile-alt text-2xl"></i>
+            <div>
+                <p class="text-sm font-bold">安裝「行程小幫手」</p>
+                <p class="text-[10px] opacity-80">將它加入桌面，隨時紀錄不迷路</p>
+            </div>
+        </div>
+        <button id="install-btn" class="bg-white text-amber-600 px-4 py-2 rounded-xl text-xs font-bold">安裝</button>
+    </div>
+
+    <script>
+        // 狀態管理
+        let tasks = [];
+        let trash = [];
+        let currentFilter = 'todo'; 
+        let editingId = null;
+        let originalContent = "";
+
+        // 初始化
+        function init() {
+            render();
+            registerPWA();
+        }
+
+        // PWA 註冊與安裝邏輯
+        function registerPWA() {
+            // 1. 註冊 Service Worker
+            if ('serviceWorker' in navigator) {
+                // 使用 Blob 建立 Service Worker 腳本 (為了維持單檔案格式)
+                const swCode = `
+                    const CACHE_NAME = 'planner-cache-v1';
+                    self.addEventListener('install', (e) => {
+                        e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(['./'])));
+                    });
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl).then(() => {
+                    console.log('PWA Service Worker Registered');
+                }).catch(err => console.log('SW Registration Failed', err));
+            }
+
+            // 2. 處理安裝按鈕
+            let deferredPrompt;
+            const installBanner = document.getElementById('install-banner');
+            const installBtn = document.getElementById('install-btn');
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                installBanner.classList.remove('hidden'); // 顯示安裝橫幅
             });
-            
-            const [location, setLocation] = useState('');
-            const [task, setTask] = useState('');
-            const [filter, setFilter] = useState('active');
-            const [isFormOpen, setIsFormOpen] = useState(false);
-            const [isTrashOpen, setIsTrashOpen] = useState(false);
 
-            useEffect(() => { 
-                localStorage.setItem('pwa_html_planner_stops', JSON.stringify(stops)); 
-            }, [stops]);
-
-            const addStop = (e) => {
-                if (e) e.preventDefault();
-                if (!location.trim()) return;
-                const newStop = {
-                    id: Date.now(),
-                    location,
-                    task: task.trim() || '未註明事項',
-                    completed: false,
-                    deleted: false,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                };
-                setStops([...stops, newStop]);
-                setLocation(''); setTask(''); setIsFormOpen(false);
-            };
-
-            const toggleComplete = (id) => setStops(stops.map(s => s.id === id ? { ...s, completed: !s.completed } : s));
-            const moveToTrash = (id) => setStops(stops.map(s => s.id === id ? { ...s, deleted: true } : s));
-            const restoreStop = (id) => setStops(stops.map(s => s.id === id ? { ...s, deleted: false } : s));
-            const permanentDelete = (id) => setStops(stops.filter(s => s.id !== id));
-
-            const filteredStops = stops.filter(s => !s.deleted).filter(s => {
-                if (filter === 'active') return !s.completed;
-                if (filter === 'completed') return s.completed;
-                return true;
-            });
-            const activeCount = stops.filter(s => !s.deleted && !s.completed).length;
-
-            return (
-                <div className="min-h-screen bg-slate-50 text-slate-800 p-4 flex flex-col items-center">
-                    <div className="w-full max-w-md pb-32 animate-in">
-                        {/* Header */}
-                        <header className="mb-10 flex items-center justify-between pt-6">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-amber-500 p-2 rounded-xl text-white shadow-lg shadow-amber-200">
-                                    <Icon name="Calendar" size={20} />
-                                </div>
-                                <h1 className="text-xl font-black">行程小幫手</h1>
-                            </div>
-                            <button onClick={() => setIsFormOpen(true)} className="bg-amber-500 text-white w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center border-4 border-white active:scale-90">
-                                <Icon name="Plus" size={28} />
-                            </button>
-                        </header>
-
-                        {/* 狀態統計 */}
-                        <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-amber-400 mb-8 flex justify-between items-center">
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">待辦任務</p>
-                                <p className="text-4xl font-black">{activeCount}</p>
-                            </div>
-                            <div className={`p-4 rounded-full ${activeCount > 0 ? 'bg-amber-100 text-amber-600 animate-bounce' : 'bg-slate-100 text-slate-300'}`}>
-                                <Icon name="MapPin" size={32} />
-                            </div>
-                        </div>
-
-                        {/* 分類切換 */}
-                        <div className="flex gap-2 mb-8 bg-white/50 p-1 rounded-2xl border border-slate-200">
-                            {['active', 'all', 'completed'].map(f => (
-                                <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${filter === f ? 'bg-amber-500 text-white shadow-md' : 'text-slate-400'}`}>
-                                    {f === 'active' ? '進行中' : f === 'all' ? '全部' : '已完成'}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* 列表內容 */}
-                        <div className="space-y-4">
-                            {filteredStops.map(stop => (
-                                <div key={stop.id} className={`bg-white rounded-3xl border-2 p-5 flex items-start gap-4 transition-all ${stop.completed ? 'border-slate-100 opacity-60' : 'border-amber-400 shadow-md'}`}>
-                                    <button onClick={() => toggleComplete(stop.id)} className={stop.completed ? 'text-emerald-500' : 'text-amber-500'}>
-                                        <Icon name={stop.completed ? 'CheckCircle' : 'Circle'} size={32} />
-                                    </button>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className={`font-black text-xl truncate ${stop.completed ? 'line-through text-slate-300' : ''}`}>{stop.location}</h3>
-                                        <p className="text-slate-500 text-sm font-bold">{stop.task}</p>
-                                    </div>
-                                    <button onClick={() => moveToTrash(stop.id)} className="text-slate-200 hover:text-rose-400"><Icon name="Trash2" size={20} /></button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 新增視窗 */}
-                    {isFormOpen && (
-                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setIsFormOpen(false)}>
-                            <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-                                <h2 className="text-xl font-black mb-6 flex items-center gap-2"><Icon name="Plus" className="text-amber-500" /> 新增地點</h2>
-                                <input autoFocus value={location} onChange={e => setLocation(e.target.value)} placeholder="去哪裡？" className="w-full p-4 bg-slate-100 rounded-2xl mb-4 outline-none font-bold" />
-                                <input value={task} onChange={e => setTask(e.target.value)} placeholder="要做什麼？" className="w-full p-4 bg-slate-100 rounded-2xl mb-8 outline-none font-bold" />
-                                <div className="flex gap-3">
-                                    <button onClick={() => setIsFormOpen(false)} className="flex-1 py-4 font-bold text-slate-400">取消</button>
-                                    <button onClick={addStop} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg">加入</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 回收站按鈕 */}
-                    <div className="fixed bottom-6 right-6">
-                        <button onClick={() => setIsTrashOpen(true)} className="bg-slate-800 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center border-4 border-white relative active:scale-90">
-                            <Icon name="Trash2" size={24} />
-                            {stops.filter(s => s.deleted).length > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">
-                                    {stops.filter(s => s.deleted).length}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-
-                    {/* 回收站彈窗 */}
-                    {isTrashOpen && (
-                        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-6" onClick={() => setIsTrashOpen(false)}>
-                            <div className="bg-slate-900 text-white w-full max-w-sm rounded-[2.5rem] p-6 border border-slate-700 animate-in" onClick={e => e.stopPropagation()}>
-                                <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                                    <h2 className="font-black flex items-center gap-2 text-rose-400"><Icon name="Trash2" size={18} /> 回收站</h2>
-                                    <button onClick={() => setIsTrashOpen(false)}><Icon name="X" size={20}/></button>
-                                </div>
-                                <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
-                                    {stops.filter(s => s.deleted).map(stop => (
-                                        <div key={stop.id} className="bg-slate-800 p-3 rounded-xl flex items-center justify-between">
-                                            <span className="font-bold truncate mr-2">{stop.location}</span>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => restoreStop(stop.id)} className="p-2 text-emerald-400"><Icon name="RotateCcw" size={16}/></button>
-                                                <button onClick={() => permanentDelete(stop.id)} className="p-2 text-rose-400"><Icon name="Trash2" size={16}/></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {stops.filter(s => s.deleted).length === 0 && <p className="text-center py-4 text-slate-500">回收站是空的</p>}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+            installBtn.addEventListener('click', async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    installBanner.classList.add('hidden');
+                }
+                deferredPrompt = null;
             });
         }
+
+        // 核心功能：新增行程
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modal-title').innerText = "要去哪裡？";
+            document.getElementById('task-input').value = "";
+            originalContent = "";
+            document.getElementById('editor-modal').classList.remove('hidden');
+        }
+
+        // 核心功能：編輯模式
+        function openEditModal(id) {
+            const task = tasks.find(t => t.id === id);
+            editingId = id;
+            document.getElementById('modal-title').innerText = "修改行程";
+            
+            let content = task.content;
+            if (content === "未註明事項") content = "";
+            
+            document.getElementById('task-input').value = content;
+            originalContent = content;
+            document.getElementById('editor-modal').classList.remove('hidden');
+        }
+
+        // 儲存邏輯
+        function saveTask() {
+            const input = document.getElementById('task-input').value.trim();
+            const finalContent = input === "" ? "未註明事項" : input;
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            if (editingId) {
+                const index = tasks.findIndex(t => t.id === editingId);
+                tasks[index].content = finalContent;
+                tasks[index].time = now;
+            } else {
+                tasks.push({
+                    id: Date.now(),
+                    content: finalContent,
+                    time: now,
+                    completed: false
+                });
+            }
+            
+            closeEditorDirectly();
+            render();
+        }
+
+        // 未儲存警示檢測
+        function closeEditorWithCheck() {
+            const currentContent = document.getElementById('task-input').value.trim();
+            if (currentContent !== originalContent) {
+                document.getElementById('alert-modal').classList.remove('hidden');
+            } else {
+                forceCloseEditor();
+            }
+        }
+
+        function forceCloseEditor() {
+            document.getElementById('alert-modal').classList.add('hidden');
+            closeEditorDirectly();
+        }
+
+        function closeEditorDirectly() {
+            document.getElementById('editor-modal').classList.add('hidden');
+            editingId = null;
+        }
+
+        // 標記完成
+        function toggleComplete(id) {
+            const index = tasks.findIndex(t => t.id === id);
+            tasks[index].completed = !tasks[index].completed;
+            render();
+        }
+
+        // 刪除行程
+        function moveToTrash(id) {
+            const index = tasks.findIndex(t => t.id === id);
+            const task = tasks.splice(index, 1)[0];
+            trash.push(task);
+            render();
+            renderTrash();
+        }
+
+        // 回收站功能：恢復
+        function restoreFromTrash(id) {
+            const index = trash.findIndex(t => t.id === id);
+            const task = trash.splice(index, 1)[0];
+            tasks.push(task);
+            render();
+            renderTrash();
+        }
+
+        // 回收站功能：永久刪除
+        function permanentDelete(id) {
+            trash = trash.filter(t => t.id !== id);
+            renderTrash();
+        }
+
+        // 分類過濾切換
+        function setFilter(filter) {
+            currentFilter = filter;
+            
+            ['todo', 'all', 'done'].forEach(f => {
+                const btn = document.getElementById(`tab-${f}`);
+                if (f === filter) {
+                    btn.classList.add('border-amber-500', 'text-amber-700');
+                    btn.classList.remove('border-transparent', 'text-slate-500');
+                } else {
+                    btn.classList.remove('border-amber-500', 'text-amber-700');
+                    btn.classList.add('border-transparent', 'text-slate-500');
+                }
+            });
+
+            render();
+        }
+
+        function toggleTrash() {
+            const panel = document.getElementById('trash-panel');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                renderTrash();
+            }
+        }
+
+        // 渲染主列表
+        function render() {
+            const list = document.getElementById('task-list');
+            const todoCountEl = document.getElementById('todo-count');
+            
+            let filteredTasks = tasks;
+            if (currentFilter === 'todo') filteredTasks = tasks.filter(t => !t.completed);
+            if (currentFilter === 'done') filteredTasks = tasks.filter(t => t.completed);
+
+            const todoCount = tasks.filter(t => !t.completed).length;
+            todoCountEl.innerText = todoCount;
+
+            if (filteredTasks.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-64 text-amber-300">
+                        <i class="fas fa-moon text-5xl mb-4"></i>
+                        <p class="font-medium">清空所有計畫，休息一下吧</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = filteredTasks.map(task => `
+                <div class="task-card bg-white rounded-2xl p-4 shadow-sm border border-amber-50 ${task.completed ? 'completed' : ''}">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs text-amber-800/40 font-medium">
+                            ${task.time} 
+                            <button onclick="openEditModal(${task.id})" class="ml-2 text-amber-200 hover:text-amber-600">
+                                <i class="fas fa-pencil-alt"></i>
+                            </button>
+                        </span>
+                        <button onclick="moveToTrash(${task.id})" class="text-amber-200 hover:text-red-400">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <p class="task-text font-bold text-lg mb-4 break-words text-slate-800">${task.content}</p>
+                    <button onclick="toggleComplete(${task.id})" 
+                            class="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all
+                            ${task.completed ? 'bg-white text-amber-700 border border-amber-300' : 'bg-amber-500 text-white shadow-lg shadow-amber-100'}">
+                        <i class="fas ${task.completed ? 'fa-undo' : 'fa-check'}"></i>
+                        ${task.completed ? '標記為未完成' : '完成後請按這'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function renderTrash() {
+            const trashList = document.getElementById('trash-list');
+            if (trash.length === 0) {
+                trashList.innerHTML = `<p class="text-center text-slate-500 py-10">回收站是空的</p>`;
+                return;
+            }
+
+            trashList.innerHTML = trash.map(item => `
+                <div class="bg-slate-800 p-4 rounded-2xl flex items-center justify-between">
+                    <div class="flex-1 mr-4">
+                        <p class="text-sm font-bold truncate">${item.content}</p>
+                        <p class="text-[10px] text-slate-500">刪除於 ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="restoreFromTrash(${item.id})" class="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center">
+                            <i class="fas fa-undo-alt"></i>
+                        </button>
+                        <button onclick="permanentDelete(${item.id})" class="w-10 h-10 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.onclick = function(event) {
+            const editor = document.getElementById('editor-modal');
+            if (event.target === editor) {
+                closeEditorWithCheck();
+            }
+        }
+
+        init();
     </script>
 </body>
 </html>
