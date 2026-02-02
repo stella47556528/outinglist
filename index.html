@@ -8,16 +8,13 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#f59e0b">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="apple-touch-icon" href="https://img.icons8.com/color/192/calendar--v1.png">
-
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/lucide-react@latest"></script>
 
     <style>
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -25,27 +22,32 @@
         @keyframes zoom-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .animate-in { animation: zoom-in 0.2s ease-out; }
         * { -webkit-tap-highlight-color: transparent; }
-        /* 避免 Babel 轉譯前的閃爍 */
-        [v-cloak] { display: none; }
+        .icon-box svg { width: 100%; height: 100%; }
     </style>
 </head>
 <body class="bg-slate-50 overflow-x-hidden">
     <div id="root">
-        <div class="p-10 text-center font-bold text-slate-400 italic">探險準備中...</div>
+        <div class="flex flex-col items-center justify-center min-h-screen text-slate-400 font-bold italic">
+            <div class="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            探險準備中...
+        </div>
     </div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
+
+        // 建立一個穩定的圖標組件
+        const Icon = ({ name, size = 24, className = "" }) => {
+            return (
+                <div 
+                    className={`inline-flex items-center justify-center ${className}`} 
+                    style={{ width: size, height: size }}
+                    dangerouslySetInnerHTML={{ __html: window.lucide ? lucide.createSvg(lucide.icons[name]) : '' }}
+                />
+            );
+        };
 
         const App = () => {
-            // 修正點：在 CDN 環境下，全域變數名稱通常是 LucideReact (注意大小寫)
-            const icons = window.LucideReact || {}; 
-            const { 
-                Plus, CheckCircle, Circle, MapPin, ClipboardList, Trash2, 
-                Calendar, LayoutList, Check, AlertCircle, 
-                RotateCcw, Pencil, X, Save, AlertTriangle, Info, BookOpen 
-            } = icons;
-
             const [stops, setStops] = useState(() => {
                 try {
                     const saved = localStorage.getItem('pwa_html_planner_stops');
@@ -58,20 +60,10 @@
             const [filter, setFilter] = useState('active');
             const [isFormOpen, setIsFormOpen] = useState(false);
             const [isTrashOpen, setIsTrashOpen] = useState(false);
-            const [isInfoOpen, setIsInfoOpen] = useState(false);
-            const [justAdded, setJustAdded] = useState(false);
-            const [editingId, setEditingId] = useState(null);
-            const [editLocation, setEditLocation] = useState('');
-            const [editTask, setEditTask] = useState('');
 
             useEffect(() => { 
                 localStorage.setItem('pwa_html_planner_stops', JSON.stringify(stops)); 
             }, [stops]);
-
-            // 系統啟動檢查
-            if (!Plus) {
-                return <div className="p-10 text-center font-bold text-slate-400">正在呼叫圖標庫...</div>;
-            }
 
             const addStop = (e) => {
                 if (e) e.preventDefault();
@@ -85,7 +77,7 @@
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
                 setStops([...stops, newStop]);
-                setLocation(''); setTask(''); setJustAdded(true);
+                setLocation(''); setTask(''); setIsFormOpen(false);
             };
 
             const toggleComplete = (id) => setStops(stops.map(s => s.id === id ? { ...s, completed: !s.completed } : s));
@@ -101,107 +93,104 @@
             const activeCount = stops.filter(s => !s.deleted && !s.completed).length;
 
             return (
-                <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8 flex flex-col items-center">
-                    <div className="w-full max-w-md pb-48">
+                <div className="min-h-screen bg-slate-50 text-slate-800 p-4 flex flex-col items-center">
+                    <div className="w-full max-w-md pb-32 animate-in">
                         {/* Header */}
-                        <header className="mb-12 relative flex items-center justify-center min-h-[100px]">
-                            <div className="absolute left-0 top-0 flex items-center gap-2 scale-90 origin-left">
-                                <div className="bg-amber-500 p-1.5 rounded-lg text-white shadow-md"><Calendar size={18} /></div>
-                                <div>
-                                    <h1 className="text-lg font-black tracking-tight">行程小幫手</h1>
-                                    <p className="text-[10px] font-medium uppercase text-amber-600">Adventure Log</p>
+                        <header className="mb-10 flex items-center justify-between pt-6">
+                            <div className="flex items-center gap-2">
+                                <div className="bg-amber-500 p-2 rounded-xl text-white shadow-lg shadow-amber-200">
+                                    <Icon name="Calendar" size={20} />
                                 </div>
+                                <h1 className="text-xl font-black">行程小幫手</h1>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <button onClick={() => setFilter('active')} className={`flex flex-col items-center px-7 py-3 rounded-3xl transition-all ${activeCount > 0 ? 'bg-amber-500 text-white shadow-2xl animate-pulse scale-110' : 'bg-white text-slate-300 border-2 border-slate-100'}`}>
-                                    <span className="text-[10px] font-black uppercase mb-1">待辦挑戰</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-4xl font-black leading-none">{activeCount}</span>
-                                        {activeCount > 0 && <AlertCircle size={24} />}
-                                    </div>
-                                </button>
-                                <button onClick={() => {setIsFormOpen(true); setJustAdded(false);}} className="bg-amber-500 text-white w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center border-4 border-white"><Plus size={32} /></button>
-                            </div>
+                            <button onClick={() => setIsFormOpen(true)} className="bg-amber-500 text-white w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center border-4 border-white active:scale-90">
+                                <Icon name="Plus" size={28} />
+                            </button>
                         </header>
 
-                        {/* 分類標籤 */}
-                        <div className="flex items-center gap-2 mb-8 bg-white/50 p-1 rounded-2xl border border-slate-200">
+                        {/* 狀態統計 */}
+                        <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-amber-400 mb-8 flex justify-between items-center">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">待辦任務</p>
+                                <p className="text-4xl font-black">{activeCount}</p>
+                            </div>
+                            <div className={`p-4 rounded-full ${activeCount > 0 ? 'bg-amber-100 text-amber-600 animate-bounce' : 'bg-slate-100 text-slate-300'}`}>
+                                <Icon name="MapPin" size={32} />
+                            </div>
+                        </div>
+
+                        {/* 分類切換 */}
+                        <div className="flex gap-2 mb-8 bg-white/50 p-1 rounded-2xl border border-slate-200">
                             {['active', 'all', 'completed'].map(f => (
-                                <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${filter === f ? 'bg-amber-500 text-white shadow-md' : 'text-slate-400'}`}>
-                                    {f === 'active' ? '進行中' : f === 'all' ? '全部' : '已制霸'}
+                                <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${filter === f ? 'bg-amber-500 text-white shadow-md' : 'text-slate-400'}`}>
+                                    {f === 'active' ? '進行中' : f === 'all' ? '全部' : '已完成'}
                                 </button>
                             ))}
                         </div>
 
                         {/* 列表內容 */}
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             {filteredStops.map(stop => (
-                                <div key={stop.id} className={`bg-white rounded-[2rem] border-2 p-6 flex items-start gap-4 transition-all ${stop.completed ? 'border-slate-100 opacity-60' : 'border-amber-400 shadow-lg'}`}>
+                                <div key={stop.id} className={`bg-white rounded-3xl border-2 p-5 flex items-start gap-4 transition-all ${stop.completed ? 'border-slate-100 opacity-60' : 'border-amber-400 shadow-md'}`}>
                                     <button onClick={() => toggleComplete(stop.id)} className={stop.completed ? 'text-emerald-500' : 'text-amber-500'}>
-                                        {stop.completed ? <CheckCircle size={32} /> : <Circle size={32} />}
+                                        <Icon name={stop.completed ? 'CheckCircle' : 'Circle'} size={32} />
                                     </button>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className={`font-black text-2xl truncate ${stop.completed ? 'line-through text-slate-400' : ''}`}>{stop.location}</h3>
-                                        <p className="text-slate-600 font-bold">{stop.task}</p>
+                                        <h3 className={`font-black text-xl truncate ${stop.completed ? 'line-through text-slate-300' : ''}`}>{stop.location}</h3>
+                                        <p className="text-slate-500 text-sm font-bold">{stop.task}</p>
                                     </div>
-                                    <button onClick={() => moveToTrash(stop.id)} className="text-slate-300"><Trash2 size={24} /></button>
+                                    <button onClick={() => moveToTrash(stop.id)} className="text-slate-200 hover:text-rose-400"><Icon name="Trash2" size={20} /></button>
                                 </div>
                             ))}
                         </div>
+                    </div>
 
-                        {/* 新增表單視窗 */}
-                        {isFormOpen && (
-                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                                <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in">
-                                    {!justAdded ? (
-                                        <form onSubmit={addStop}>
-                                            <h2 className="text-xl font-black mb-6 flex items-center gap-2"><MapPin className="text-amber-500" /> 新冒險地點</h2>
-                                            <input autoFocus value={location} onChange={e => setLocation(e.target.value)} placeholder="要去哪裡？" className="w-full p-4 bg-slate-50 rounded-2xl mb-4 outline-none border-none focus:ring-2 focus:ring-amber-500 font-bold" />
-                                            <input value={task} onChange={e => setTask(e.target.value)} placeholder="備註事項" className="w-full p-4 bg-slate-50 rounded-2xl mb-6 outline-none font-bold" />
-                                            <div className="flex gap-3">
-                                                <button type="button" onClick={() => setIsFormOpen(false)} className="flex-1 py-4 font-bold text-slate-400">取消</button>
-                                                <button type="submit" className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg">加入</button>
-                                            </div>
-                                        </form>
-                                    ) : (
-                                        <div className="text-center py-4">
-                                            <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4"><Check size={32} /></div>
-                                            <h3 className="text-xl font-black mb-6">已加入日誌！</h3>
-                                            <button onClick={() => setIsFormOpen(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black">完成</button>
-                                        </div>
-                                    )}
+                    {/* 新增視窗 */}
+                    {isFormOpen && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setIsFormOpen(false)}>
+                            <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
+                                <h2 className="text-xl font-black mb-6 flex items-center gap-2"><Icon name="Plus" className="text-amber-500" /> 新增地點</h2>
+                                <input autoFocus value={location} onChange={e => setLocation(e.target.value)} placeholder="去哪裡？" className="w-full p-4 bg-slate-100 rounded-2xl mb-4 outline-none font-bold" />
+                                <input value={task} onChange={e => setTask(e.target.value)} placeholder="要做什麼？" className="w-full p-4 bg-slate-100 rounded-2xl mb-8 outline-none font-bold" />
+                                <div className="flex gap-3">
+                                    <button onClick={() => setIsFormOpen(false)} className="flex-1 py-4 font-bold text-slate-400">取消</button>
+                                    <button onClick={addStop} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg">加入</button>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                    
-                    {/* 功能按鈕 */}
-                    <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-                        <button onClick={() => setIsTrashOpen(!isTrashOpen)} className="bg-slate-800 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center border-4 border-white relative">
-                            <Trash2 size={24} />
-                            {stops.filter(s => s.deleted).length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stops.filter(s => s.deleted).length}</span>}
+                        </div>
+                    )}
+
+                    {/* 回收站按鈕 */}
+                    <div className="fixed bottom-6 right-6">
+                        <button onClick={() => setIsTrashOpen(true)} className="bg-slate-800 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center border-4 border-white relative active:scale-90">
+                            <Icon name="Trash2" size={24} />
+                            {stops.filter(s => s.deleted).length > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">
+                                    {stops.filter(s => s.deleted).length}
+                                </span>
+                            )}
                         </button>
                     </div>
 
-                    {/* 回收站 */}
+                    {/* 回收站彈窗 */}
                     {isTrashOpen && (
                         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-6" onClick={() => setIsTrashOpen(false)}>
-                            <div className="bg-slate-900 text-white w-full max-w-sm rounded-[2.5rem] p-6 border border-slate-700" onClick={e => e.stopPropagation()}>
+                            <div className="bg-slate-900 text-white w-full max-w-sm rounded-[2.5rem] p-6 border border-slate-700 animate-in" onClick={e => e.stopPropagation()}>
                                 <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                                    <h2 className="font-black flex items-center gap-2"><Trash2 size={18} /> 回收站</h2>
-                                    <button onClick={() => setIsTrashOpen(false)}><X size={20}/></button>
+                                    <h2 className="font-black flex items-center gap-2 text-rose-400"><Icon name="Trash2" size={18} /> 回收站</h2>
+                                    <button onClick={() => setIsTrashOpen(false)}><Icon name="X" size={20}/></button>
                                 </div>
-                                <div className="max-h-60 overflow-y-auto space-y-2">
+                                <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
                                     {stops.filter(s => s.deleted).map(stop => (
                                         <div key={stop.id} className="bg-slate-800 p-3 rounded-xl flex items-center justify-between">
                                             <span className="font-bold truncate mr-2">{stop.location}</span>
-                                            <div className="flex gap-2 shrink-0">
-                                                <button onClick={() => restoreStop(stop.id)} className="p-2 bg-slate-700 rounded-lg text-emerald-400"><RotateCcw size={14}/></button>
-                                                <button onClick={() => permanentDelete(stop.id)} className="p-2 bg-slate-700 rounded-lg text-rose-400"><Trash2 size={14}/></button>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => restoreStop(stop.id)} className="p-2 text-emerald-400"><Icon name="RotateCcw" size={16}/></button>
+                                                <button onClick={() => permanentDelete(stop.id)} className="p-2 text-rose-400"><Icon name="Trash2" size={16}/></button>
                                             </div>
                                         </div>
                                     ))}
-                                    {stops.filter(s => s.deleted).length === 0 && <p className="text-center py-4 text-slate-500">空空如也</p>}
+                                    {stops.filter(s => s.deleted).length === 0 && <p className="text-center py-4 text-slate-500">回收站是空的</p>}
                                 </div>
                             </div>
                         </div>
@@ -213,7 +202,6 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
 
-        // 註冊 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
