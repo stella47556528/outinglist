@@ -68,6 +68,19 @@
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
+        .date-btn.active {
+            background-color: var(--color-ongoing);
+            color: white;
+            border-color: var(--color-ongoing);
+        }
+
+        .filter-date-btn.active {
+            color: var(--color-ongoing);
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            font-weight: 700;
+        }
     </style>
 </head>
 <body class="max-w-md mx-auto min-h-screen shadow-2xl bg-[#fafaf9] flex flex-col relative border-x border-stone-100">
@@ -93,12 +106,20 @@
         </div>
     </header>
 
-    <!-- Tabs -->
+    <!-- Tabs (狀態過濾) -->
     <nav class="flex border-b border-stone-100 text-xs font-medium bg-white">
         <button onclick="setFilter('todo')" id="tab-todo" class="flex-1 py-4 border-b-2 border-[#cb8161] text-stone-800 font-bold transition-all">進行中</button>
         <button onclick="setFilter('all')" id="tab-all" class="flex-1 py-4 border-b-2 border-transparent text-stone-400">全部清單</button>
         <button onclick="setFilter('done')" id="tab-done" class="flex-1 py-4 border-b-2 border-transparent text-stone-400">已達成</button>
     </nav>
+
+    <!-- Date Filter (日期過濾) -->
+    <div class="bg-stone-50/50 p-3 flex gap-2 overflow-x-auto no-scrollbar border-b border-stone-100">
+        <button onclick="setDayFilter('all')" id="day-filter-all" class="filter-date-btn active px-4 py-1.5 rounded-full text-[10px] tracking-wider transition-all border border-transparent whitespace-nowrap">全部日期</button>
+        <button onclick="setDayFilter(0)" id="day-filter-0" class="filter-date-btn px-4 py-1.5 rounded-full text-[10px] tracking-wider transition-all border border-transparent whitespace-nowrap text-stone-400">今天</button>
+        <button onclick="setDayFilter(1)" id="day-filter-1" class="filter-date-btn px-4 py-1.5 rounded-full text-[10px] tracking-wider transition-all border border-transparent whitespace-nowrap text-stone-400">明天</button>
+        <button onclick="setDayFilter(2)" id="day-filter-2" class="filter-date-btn px-4 py-1.5 rounded-full text-[10px] tracking-wider transition-all border border-transparent whitespace-nowrap text-stone-400">後天</button>
+    </div>
 
     <!-- Task List -->
     <main id="task-list" class="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar pb-28">
@@ -132,14 +153,22 @@
             
             <div id="save-hint" class="text-center h-4 mb-4 text-[10px] text-[#cb8161] font-bold opacity-0 transition-opacity">已成功新增紀錄</div>
 
-            <div class="space-y-5">
+            <div class="space-y-4">
+                <!-- 日期選擇 -->
+                <div>
+                    <label class="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">預計日期 (三天內)</label>
+                    <div id="date-selection-group" class="flex gap-2">
+                        <!-- 由 JS 動態生成 -->
+                    </div>
+                </div>
+
                 <div>
                     <label class="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">目的地</label>
                     <input id="location-input" type="text" class="w-full p-4 bg-stone-50 rounded-2xl border border-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-200 text-sm" placeholder="想去哪裡？">
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">計畫內容</label>
-                    <textarea id="details-input" class="w-full h-28 p-4 bg-stone-50 rounded-2xl border border-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-200 text-sm" placeholder="要做什麼？要買什麼？"></textarea>
+                    <textarea id="details-input" class="w-full h-24 p-4 bg-stone-50 rounded-2xl border border-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-200 text-sm" placeholder="要做什麼？要買什麼？"></textarea>
                 </div>
             </div>
             
@@ -168,32 +197,19 @@
         </div>
     </div>
 
-    <!-- PWA Install Banner -->
-    <div id="install-banner" class="fixed bottom-24 left-6 right-6 bg-stone-800 text-white p-5 rounded-3xl shadow-2xl z-50 hidden flex items-center justify-between">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 bg-stone-700 rounded-xl flex items-center justify-center">
-                <i class="fas fa-leaf text-[#91a398]"></i>
-            </div>
-            <div>
-                <p class="text-xs font-bold tracking-tight">安裝行程小幫手</p>
-                <p class="text-[10px] opacity-60">收藏您的日常足跡</p>
-            </div>
-        </div>
-        <button id="install-btn" class="bg-[#cb8161] text-white px-5 py-2.5 rounded-xl text-[10px] font-bold shadow-sm uppercase tracking-tighter">安裝</button>
-    </div>
-
     <script>
         let tasks = [];
         let trash = [];
         let currentFilter = 'todo'; 
+        let currentDayFilter = 'all'; // 新增：日期過濾狀態
         let editingId = null;
         let originalLocation = "";
         let originalDetails = "";
+        let selectedDayIndex = 0; // 新增模式下的日期選擇
 
         function init() {
             loadData();
             render();
-            registerPWA();
         }
 
         function saveData() {
@@ -208,42 +224,54 @@
             if (savedTrash) trash = JSON.parse(savedTrash);
         }
 
-        function registerPWA() {
-            if ('serviceWorker' in navigator) {
-                const swCode = `
-                    const CACHE_NAME = 'planner-v2.6';
-                    self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./']))));
-                    self.addEventListener('fetch', (e) => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-                `;
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl).catch(err => console.log(err));
-            }
+        // 生成新增視窗中的日期按鈕
+        function generateDateButtons() {
+            const group = document.getElementById('date-selection-group');
+            const days = ['今天', '明天', '後天'];
+            group.innerHTML = days.map((day, index) => `
+                <button type="button" onclick="selectDate(${index})" id="date-btn-${index}" 
+                    class="date-btn flex-1 py-2 rounded-xl border border-stone-100 text-[10px] font-bold transition-all
+                    ${index === selectedDayIndex ? 'active' : 'bg-stone-50 text-stone-400'}">
+                    ${day}
+                </button>
+            `).join('');
+        }
 
-            let deferredPrompt;
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                document.getElementById('install-banner').classList.remove('hidden');
+        function selectDate(index) {
+            selectedDayIndex = index;
+            document.querySelectorAll('.date-btn').forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.classList.add('active');
+                    btn.classList.remove('bg-stone-50', 'text-stone-400');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('bg-stone-50', 'text-stone-400');
+                }
             });
+        }
 
-            document.getElementById('install-btn').addEventListener('click', async () => {
-                if (!deferredPrompt) return;
-                deferredPrompt.prompt();
-                await deferredPrompt.userChoice;
-                document.getElementById('install-banner').classList.add('hidden');
-                deferredPrompt = null;
+        // 設定清單的日期過濾
+        function setDayFilter(day) {
+            currentDayFilter = day;
+            document.querySelectorAll('.filter-date-btn').forEach(btn => {
+                const id = btn.id;
+                const match = id === `day-filter-${day}`;
+                btn.classList.toggle('active', match);
+                btn.classList.toggle('text-stone-400', !match);
             });
+            render();
         }
 
         function openAddModal() {
             editingId = null;
+            selectedDayIndex = 0; 
             document.getElementById('modal-title').innerText = "新增紀錄";
             document.getElementById('save-continue-btn').classList.remove('hidden');
             document.getElementById('location-input').value = "";
             document.getElementById('details-input').value = "";
             originalLocation = "";
             originalDetails = "";
+            generateDateButtons();
             document.getElementById('editor-modal').classList.remove('hidden');
             setTimeout(() => document.getElementById('location-input').focus(), 300);
         }
@@ -251,14 +279,14 @@
         function openEditModal(id) {
             const task = tasks.find(t => t.id === id);
             editingId = id;
+            selectedDayIndex = task.dayIndex || 0;
             document.getElementById('modal-title').innerText = "修改計畫";
             document.getElementById('save-continue-btn').classList.add('hidden');
-            const loc = task.location === "未註明地點" ? "" : task.location;
-            const det = task.details === "無備註事項" ? "" : task.details;
-            document.getElementById('location-input').value = loc;
-            document.getElementById('details-input').value = det;
-            originalLocation = loc;
-            originalDetails = det;
+            document.getElementById('location-input').value = task.location === "未註明地點" ? "" : task.location;
+            document.getElementById('details-input').value = task.details === "無備註事項" ? "" : task.details;
+            originalLocation = document.getElementById('location-input').value;
+            originalDetails = document.getElementById('details-input').value;
+            generateDateButtons();
             document.getElementById('editor-modal').classList.remove('hidden');
         }
 
@@ -267,15 +295,26 @@
             const detInput = document.getElementById('details-input').value.trim();
             const finalLocation = locInput === "" ? "未註明地點" : locInput;
             const finalDetails = detInput === "" ? "無備註事項" : detInput;
-            const now = new Date().toLocaleDateString('zh-TW', {month:'short', day:'numeric'}) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            const dayLabels = ['今天', '明天', '後天'];
 
             if (editingId) {
                 const index = tasks.findIndex(t => t.id === editingId);
                 tasks[index].location = finalLocation;
                 tasks[index].details = finalDetails;
+                tasks[index].dayIndex = selectedDayIndex;
+                tasks[index].dayLabel = dayLabels[selectedDayIndex];
                 tasks[index].time = now;
             } else {
-                tasks.push({ id: Date.now(), location: finalLocation, details: finalDetails, time: now, completed: false });
+                tasks.push({ 
+                    id: Date.now(), 
+                    location: finalLocation, 
+                    details: finalDetails, 
+                    dayIndex: selectedDayIndex,
+                    dayLabel: dayLabels[selectedDayIndex],
+                    time: now, 
+                    completed: false 
+                });
             }
             
             saveData();
@@ -360,18 +399,27 @@
         function render() {
             const list = document.getElementById('task-list');
             const todoCountEl = document.getElementById('todo-count');
+            
+            // 狀態篩選
             let filteredTasks = tasks;
             if (currentFilter === 'todo') filteredTasks = tasks.filter(t => !t.completed);
             if (currentFilter === 'done') filteredTasks = tasks.filter(t => t.completed);
 
-            const todoCount = tasks.filter(t => !t.completed).length;
-            todoCountEl.innerText = todoCount;
+            // 日期過濾篩選
+            if (currentDayFilter !== 'all') {
+                filteredTasks = filteredTasks.filter(t => (t.dayIndex || 0) === currentDayFilter);
+            }
+
+            // 按照日期與時間排序
+            filteredTasks.sort((a, b) => a.dayIndex - b.dayIndex || a.id - b.id);
+
+            todoCountEl.innerText = tasks.filter(t => !t.completed).length;
 
             if (filteredTasks.length === 0) {
                 list.innerHTML = `
                     <div class="flex flex-col items-center justify-center h-80 text-stone-200">
-                        <i class="fas fa-seedling text-4xl mb-6 opacity-30"></i>
-                        <p class="text-xs tracking-widest uppercase font-light text-stone-300">目前暫無計畫</p>
+                        <i class="fas fa-calendar-day text-4xl mb-6 opacity-30"></i>
+                        <p class="text-xs tracking-widest uppercase font-light text-stone-300">此範圍暫無計畫</p>
                     </div>`;
                 return;
             }
@@ -379,21 +427,26 @@
             list.innerHTML = filteredTasks.map(task => `
                 <div class="task-card bg-white rounded-[2rem] p-6 shadow-sm border border-stone-100 ${task.completed ? 'completed' : 'status-pending'}">
                     <div class="flex justify-between items-start mb-4">
-                        <span class="text-[9px] text-stone-400 font-bold uppercase tracking-wider flex items-center">
-                            <i class="far fa-clock mr-1 text-[8px]"></i> ${task.time} 
-                            <button onclick="openEditModal(${task.id})" class="ml-2 hover:text-stone-800 transition-colors">
-                                <i class="fas fa-edit"></i>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] bg-stone-100 text-stone-500 px-2 py-1 rounded-lg font-bold tracking-wider">
+                                ${task.dayLabel || '今天'}
+                            </span>
+                            <span class="text-[9px] text-stone-300 font-bold uppercase tracking-wider">
+                                <i class="far fa-clock mr-1 text-[8px]"></i> ${task.time} 
+                            </span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openEditModal(${task.id})" class="text-stone-300 hover:text-stone-800 transition-colors">
+                                <i class="fas fa-edit text-xs"></i>
                             </button>
-                        </span>
-                        <button onclick="moveToTrash(${task.id})" class="text-stone-200 hover:text-red-400 transition-colors">
-                            <i class="fas fa-times-circle"></i>
-                        </button>
+                            <button onclick="moveToTrash(${task.id})" class="text-stone-200 hover:text-red-400 transition-colors">
+                                <i class="fas fa-times-circle text-xs"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="mb-6">
-                        <div class="flex items-center gap-2 mb-2">
-                            <h2 class="task-text font-bold text-lg tracking-tight text-stone-800">${task.location}</h2>
-                        </div>
+                        <h2 class="task-text font-bold text-lg tracking-tight text-stone-800 mb-2">${task.location}</h2>
                         <p class="task-text text-sm text-stone-500 leading-relaxed font-light">
                             ${task.details.replace(/\n/g, '<br>')}
                         </p>
@@ -418,7 +471,7 @@
             trashList.innerHTML = trash.map(item => `
                 <div class="bg-stone-700/50 p-5 rounded-3xl flex items-center justify-between border border-stone-600/30">
                     <div class="flex-1 mr-4 overflow-hidden">
-                        <p class="text-xs font-bold truncate text-stone-100">${item.location}</p>
+                        <p class="text-xs font-bold truncate text-stone-100"><span class="opacity-50 mr-1">[${item.dayLabel || '今天'}]</span> ${item.location}</p>
                         <p class="text-[9px] text-stone-400 truncate mt-1">${item.details}</p>
                     </div>
                     <div class="flex gap-2">
