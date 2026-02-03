@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="行程小幫手">
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href='data:application/manifest+json,{"name":"行程小幫手 Planner","short_name":"行程小幫手","description":"文青美學風格的行程管理工具","start_url":".","display":"standalone","background_color":"#fafaf9","theme_color":"#cb8161","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/854/854878.png","sizes":"512x512","type":"image/png"}]}'>
+    <link rel="manifest" href='data:application/manifest+json,{"name":"行程小幫手 Planner","short_name":"行程小幫手","description":"文青美學風格的行程 management 工具","start_url":".","display":"standalone","background_color":"#fafaf9","theme_color":"#cb8161","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/854/854878.png","sizes":"512x512","type":"image/png"}]}'>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -82,10 +82,14 @@
 </head>
 <body class="max-w-md mx-auto min-h-screen shadow-2xl bg-[#fafaf9] flex flex-col relative border-x border-stone-100">
 
-    <!-- Header -->
+    <!-- Header (字體放大更新) -->
     <header class="bg-white border-b border-stone-200 sticky top-0 z-30 px-5 py-5 grid grid-cols-3 items-center">
-        <div class="justify-self-start">
-            <h1 class="text-xs font-bold tracking-widest text-stone-400 uppercase">Planner</h1>
+        <div class="justify-self-start overflow-hidden">
+            <!-- 標題字體調整為最大適應空間 -->
+            <h1 class="text-[18px] font-black text-stone-400 leading-[1.1] tracking-tighter">
+                出門囉!<br>
+                <span class="text-[9px] font-bold opacity-70 block mt-0.5 whitespace-nowrap">記得今天有這些事要做!</span>
+            </h1>
         </div>
         
         <div class="justify-self-center">
@@ -183,7 +187,6 @@
                 </div>
             </div>
 
-            <!-- Version Info -->
             <div class="mt-8 pt-4 border-t border-stone-100 text-center">
                 <p class="text-[9px] text-stone-300 font-bold uppercase tracking-widest">Outinglist V1.0</p>
                 <p class="text-[8px] text-stone-300 mt-1 opacity-60 italic">© 2026 黃家騎士團</p>
@@ -565,13 +568,10 @@
             `).join('');
         }
 
-        // 監聽全局點擊事件以關閉彈窗與面板
         window.onclick = e => { 
             const editorModal = document.getElementById('editor-modal');
             const infoPanel = document.getElementById('info-panel');
             const trashPanel = document.getElementById('trash-panel');
-
-            // 如果點擊的是背景（backdrop），則關閉對應內容
             if (e.target === editorModal || e.target === infoPanel || e.target === trashPanel) {
                 forceCloseEditor();
             } 
