@@ -82,24 +82,24 @@
 </head>
 <body class="max-w-md mx-auto min-h-screen shadow-2xl bg-[#fafaf9] flex flex-col relative border-x border-stone-100">
 
-    <!-- Header (標題字體與顏色更新) -->
-    <header class="bg-white border-b border-stone-200 sticky top-0 z-30 px-5 py-5 grid grid-cols-3 items-center">
-        <div class="justify-self-start overflow-hidden">
+    <!-- Header -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-30 px-5 py-5 grid grid-cols-12 items-center">
+        <div class="col-span-6 justify-self-start overflow-hidden text-left">
             <h1 class="text-[18px] font-black text-stone-400 leading-[1.1] tracking-tighter">
                 出門囉!<br>
                 <span class="text-[14px] font-bold text-[#cb8161] block mt-0.5 whitespace-nowrap">記得今天有這些事要做!</span>
             </h1>
         </div>
         
-        <div class="justify-self-center">
-            <div onclick="goToTodayTodo()" class="cursor-pointer bg-[#cb8161] px-5 py-2 rounded-full shadow-lg shadow-orange-100 animate-pulse flex items-center justify-center">
-                <span class="text-xs font-black text-white whitespace-nowrap flex items-center">
-                    今天進行中 <span id="todo-count" class="text-lg ml-1.5 font-black">0</span>
+        <div class="col-span-4 justify-self-center">
+            <div onclick="goToTodayTodo()" class="cursor-pointer bg-[#cb8161] px-3 py-2 rounded-full shadow-lg shadow-orange-100 animate-pulse flex items-center justify-center">
+                <span class="text-xs font-black text-white whitespace-nowrap flex flex-col items-center leading-none">
+                    今天 <span id="todo-count" class="text-base font-black">0</span>
                 </span>
             </div>
         </div>
 
-        <div class="justify-self-end">
+        <div class="col-span-2 justify-self-end">
             <button onclick="openAddModal()" class="w-10 h-10 bg-stone-700 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform">
                 <i class="fas fa-plus text-sm"></i>
             </button>
@@ -122,7 +122,7 @@
             <button onclick="setDayFilter('upcoming')" id="day-filter-upcoming" class="filter-date-btn px-4 py-1.5 rounded-full text-[10px] tracking-wider transition-all border border-transparent whitespace-nowrap text-stone-400">未來行程</button>
             <button onclick="setDayFilter('expired')" id="day-filter-expired" class="filter-date-btn px-4 py-1.5 rounded-full text-[10px] tracking-wider transition-all border border-transparent whitespace-nowrap text-stone-400">已過期</button>
         </div>
-        <div class="px-2 text-[9px] text-stone-300 font-medium italic">
+        <div class="px-2 text-[9px] text-stone-300 font-medium italic text-left">
             <i class="fas fa-info-circle mr-1"></i> 最多保持過去三天記錄，逾期自動刪除
         </div>
     </div>
@@ -174,7 +174,7 @@
                 </div>
                 <div class="flex gap-4">
                     <div class="w-6 h-6 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold">3</div>
-                    <p class="text-xs text-stone-500 leading-relaxed"><span class="text-stone-800 font-bold">一鍵跳轉</span>：點擊頂部「今天進行中」，快速鎖定今日待辦。</p>
+                    <p class="text-xs text-stone-500 leading-relaxed"><span class="text-stone-800 font-bold">一鍵跳轉</span>：點擊頂部「今天」，快速鎖定今日待辦。</p>
                 </div>
                 <div class="flex gap-4">
                     <div class="w-6 h-6 bg-stone-100 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold">4</div>
@@ -200,18 +200,18 @@
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 modal-enter shadow-2xl border-t-4 border-[#cb8161]">
             <h3 id="modal-title" class="text-lg font-bold mb-2 text-stone-800 text-center tracking-tight">新增紀錄</h3>
             
-            <div id="save-hint" class="text-center h-4 mb-4 text-[10px] text-[#cb8161] font-bold opacity-0 transition-opacity">已成功新增紀錄</div>
+            <div id="save-hint" class="text-center h-4 mb-4 text-[10px] text-[#cb8161] font-bold opacity-0 transition-opacity text-left">已成功新增紀錄</div>
 
             <div class="space-y-4">
-                <div>
+                <div class="text-left">
                     <label class="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">預計日期</label>
                     <input id="date-input" type="date" class="w-full p-4 bg-stone-50 rounded-2xl border border-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-200 text-sm appearance-none">
                 </div>
-                <div>
+                <div class="text-left">
                     <label class="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">目的地</label>
                     <input id="location-input" type="text" class="w-full p-4 bg-stone-50 rounded-2xl border border-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-200 text-sm" placeholder="想去哪裡？">
                 </div>
-                <div>
+                <div class="text-left">
                     <label class="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">計畫內容</label>
                     <textarea id="details-input" class="w-full h-24 p-4 bg-stone-50 rounded-2xl border border-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-200 text-sm" placeholder="要做什麼？要買什麼？"></textarea>
                 </div>
@@ -271,14 +271,25 @@
             if (savedTrash) trash = JSON.parse(savedTrash);
         }
 
+        // 核心修正：使用本地時間取得正確日期字串
+        function getLocalDateStr(dateObj = new Date()) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         function autoCleanupOldTasks() {
-            const date = new Date();
-            date.setDate(date.getDate() - 3);
-            const cutoffStr = date.toISOString().split('T')[0];
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const cutoffDate = new Date(today);
+            cutoffDate.setDate(today.getDate() - 3);
+            const cutoffStr = getLocalDateStr(cutoffDate);
 
             const initialTaskCount = tasks.length;
             const initialTrashCount = trash.length;
 
+            // 僅保留日期大於等於三天前的紀錄
             tasks = tasks.filter(t => t.date >= cutoffStr);
             trash = trash.filter(t => t.date >= cutoffStr);
 
@@ -290,7 +301,7 @@
         function registerPWA() {
             if ('serviceWorker' in navigator) {
                 const swCode = `
-                    const CACHE_NAME = 'outinglist-v1.0';
+                    const CACHE_NAME = 'outinglist-v1.1';
                     self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./']))));
                     self.addEventListener('fetch', (e) => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
                 `;
@@ -333,15 +344,15 @@
             render();
         }
 
-        function getTodayStr() {
-            return new Date().toISOString().split('T')[0];
-        }
+								
+														  
+		 
 
         function openAddModal() {
             editingId = null;
             document.getElementById('modal-title').innerText = "新增紀錄";
             document.getElementById('save-continue-btn').classList.remove('hidden');
-            const today = getTodayStr();
+            const today = getLocalDateStr();
             const dateInput = document.getElementById('date-input');
             dateInput.min = today;
             dateInput.value = today;
@@ -360,7 +371,7 @@
             document.getElementById('modal-title').innerText = "修改計畫";
             document.getElementById('save-continue-btn').classList.add('hidden');
             const dateInput = document.getElementById('date-input');
-            const today = getTodayStr();
+            const today = getLocalDateStr();
             dateInput.min = today;
             dateInput.value = task.date;
             document.getElementById('location-input').value = task.location === "未註明地點" ? "" : task.location;
@@ -465,7 +476,7 @@
         function render() {
             const list = document.getElementById('task-list');
             const todoCountEl = document.getElementById('todo-count');
-            const todayStr = getTodayStr();
+            const todayStr = getLocalDateStr();
 
             const todayTodoCount = tasks.filter(t => !t.completed && t.date === todayStr).length;
             todoCountEl.innerText = todayTodoCount;
@@ -478,13 +489,13 @@
             else if (currentDayFilter === 'tomorrow') {
                 const date = new Date();
                 date.setDate(date.getDate() + 1);
-                const tomStr = date.toISOString().split('T')[0];
+                const tomStr = getLocalDateStr(date);
                 filteredTasks = filteredTasks.filter(t => t.date === tomStr);
             }
             else if (currentDayFilter === 'upcoming') {
                 const date = new Date();
                 date.setDate(date.getDate() + 1);
-                const tomStr = date.toISOString().split('T')[0];
+                const tomStr = getLocalDateStr(date);
                 filteredTasks = filteredTasks.filter(t => t.date > tomStr);
             }
             else if (currentDayFilter === 'expired') filteredTasks = filteredTasks.filter(t => t.date < todayStr);
